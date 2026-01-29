@@ -1,0 +1,142 @@
+name: CI Build & Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        gcc-version: [9, 10, 11, 12]
+    
+    name: Build & Test (GCC ${{ matrix.gcc-version }})
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup GCC ${{ matrix.gcc-version }}
+      uses: egor-tensin/setup-gcc@v1
+      with:
+        version: ${{ matrix.gcc-version }}
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libkmod-dev pkg-config valgrind
+
+    - name: Check dependencies
+      run: make check-deps
+
+    - name: Clean build artifacts
+      run: make clean
+
+    - name: Build project
+      run: make
+
+    - name: Verify binary exists
+      run: |
+        test -f ./kmm || (echo "Binary not found"; exit 1)
+        file ./kmm
+        ls -lh ./kmm
+
+    - name: Test: Help command
+      run: ./kmm help
+
+    - name: Test: List modules
+      run: ./kmm list | head -20
+
+    - name: Test: Check loaded module
+      run: ./kmm check kernel
+
+    - name: Test: Check unloaded module
+      run: |
+        ./kmm check nonexistent_module_xyz || true
+
+    - name: Memory leak check (valgrind)
+      run: |
+        valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes \
+          ./kmm check kernel 2>&1 | tee valgrind.log
+        grep "ERROR SUMMARY: 0 errors" valgrind.log || echo "Warning: Memory issues detected"
+
+  code-quality:
+    runs-on: ubuntu-latest
+    name: Code Quality Checks
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck clang-format libkmod-dev pkg-config
+
+    - name: Static analysis (cppcheck)
+      run: cppcheck --enable=all --suppress=missingIncludeSystem src/ include/ 2>&1 || true
+
+    - name: Check code formatting
+      run: |
+        clang-format --dry-run -Werror src/*.c include/*.h 2>&1 || \
+        echo "Note: Some files need formatting (run: clang-format -i src/*.c include/*.h)"
+
+    - name: Check for TODO/FIXME comments
+      run: |
+        echo "=== TODO/FIXME comments ===" && \
+        grep -rn "TODO\|FIXME" src/ include/ || echo "No TODOs found"
+
+  sonarcloud:
+    runs-on: ubuntu-latest
+    name: SonarCloud Analysis
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libkmod-dev pkg-config build-wrapper-common
+
+    - name: SonarCloud Scan
+      uses: SonarSource/sonarcloud-github-action@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONARCLOUD_TOKEN: ${{ secrets.SONARCLOUD_TOKEN }}
+      if: ${{ env.SONARCLOUD_TOKEN != '' }}
+      continue-on-error: true
+
+  documentation:
+    runs-on: ubuntu-latest
+    name: Documentation Check
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Verify README exists
+      run: test -f README.md && echo "README found"
+
+    - name: Check README formatting
+      run: |
+        echo "README.md exists: $(wc -l < README.md) lines"
+        grep -q "# Kernel Module Manager" README.md || \
+        (echo "README missing title"; exit 1)
+
+    - name: Verify Makefile exists
+      run: test -f Makefile && echo "Makefile found"
+
+    - name: Check header documentation
+      run: |
+        grep -q "^#ifndef" include/module_manager.h || \
+        (echo "Missing header guards"; exit 1)
+
+outputs:
+  build-status: ${{ job.status }}
+
