@@ -285,7 +285,7 @@ KMM is optimized for speed and minimal memory usage:
 
 ## License
 
-This project is open-source. Modify and extend as needed for your use case.
+This project is distributed under the [GPL-3.0 License](./LICENSE).
 
 ## Contributing
 
@@ -320,10 +320,6 @@ For issues or questions:
 1. Check the [Troubleshooting](#troubleshooting) section
 2. Verify libkmod is installed: `pkg-config --modversion libkmod`
 3. Check kernel module support: `ls /lib/modules/$(uname -r)/`
-
-## Version
-
-**KMM 1.0.0** - Initial release with core module management functionality
 
 ---
 
