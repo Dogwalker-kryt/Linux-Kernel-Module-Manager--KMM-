@@ -5,7 +5,10 @@ A lightweight, user-friendly C utility for managing Linux kernel modules. Load, 
 ## Version
 
 Current version:
-    **v0.0.1**
+    **v0.0.2**
+
+last edits:
+- logger added
 
 
 ## Features
@@ -45,7 +48,14 @@ make
 
 The compiled binary will be at: `./kmm`
 
-### 3. Verify Build
+### 3. Create log file for logger
+
+```
+mkdir ~/.local/share/KMM
+touch ~/.local/shate/KMM/log_data.log
+```
+
+### 4. Verify Build
 
 ```bash
 ./kmm help
