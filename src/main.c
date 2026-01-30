@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../include/module_manager.h"
+#include "../include/logger.h"
 
 // ============================================================================
 // CLI Commands
@@ -28,6 +29,7 @@ int cmd_load(int argc, char *argv[]) {
     if (argc < 3) {
         fprintf(stderr, "[Error] load: missing module path\n");
         fprintf(stderr, "Usage: kmm load <path> [params]\n");
+        KMM_log("Failed to load module: missing path", NULL);
         return 1;
     }
 
@@ -42,16 +44,23 @@ int cmd_load(int argc, char *argv[]) {
     int ret = mm_load(path, params);
     if (ret != 0) {
         fprintf(stderr, "[Error] Failed to load module: %s\n", mm_last_error());
+
+        char buffer[256];
+        snprintf(buffer, sizeof(buffer), "Failed to load module %s", mm_last_error());
+        KMM_log(buffer, NULL);
+
         return 1;
     }
 
     printf("[OK] Module loaded successfully\n");
+    KMM_log("module loaded successfully", NULL);
     return 0;
 }
 
 int cmd_unload(int argc, char *argv[]) {
     if (argc < 3) {
         fprintf(stderr, "[Error] unload: missing module name\n");
+        KMM_log("Failed to unload module: missing name", NULL);
         fprintf(stderr, "Usage: kmm unload <name>\n");
         return 1;
     }
@@ -59,10 +68,16 @@ int cmd_unload(int argc, char *argv[]) {
     const char *name = argv[2];
 
     printf("[INFO] Unloading module: %s\n", name);
+    KMM_log("Attempting to unload module", NULL);
 
     int ret = mm_unload(name);
     if (ret != 0) {
         fprintf(stderr, "[Error] Failed to unload module: %s\n", mm_last_error());
+
+        char buffer [256];
+        snprintf(buffer, sizeof(buffer), "Failed to unload module %s", mm_last_error());
+        KMM_log(buffer, NULL);
+
         return 1;
     }
 
@@ -81,6 +96,11 @@ int cmd_list(void) {
     int ret = mm_list(&list, &count);
     if (ret != 0) {
         fprintf(stderr, "[Error] Failed to list modules: %s\n", mm_last_error());
+        
+        char buffer[256];
+        snprintf(buffer, sizeof(buffer), "Failed to list modules: %s", mm_last_error());
+        KMM_log(buffer, NULL);
+
         return 1;
     }
 
@@ -106,6 +126,7 @@ int cmd_list(void) {
 int cmd_check(int argc, char *argv[]) {
     if (argc < 3) {
         fprintf(stderr, "[Error] check: missing module name\n");
+        KMM_log("Failed to check module: missing name", NULL);
         fprintf(stderr, "Usage: kmm check <name>\n");
         return 1;
     }
@@ -115,14 +136,17 @@ int cmd_check(int argc, char *argv[]) {
     int ret = mm_is_loaded(name);
     if (ret < 0) {
         fprintf(stderr, "[Error] Failed to check module: %s\n", mm_last_error());
+        KMM_log("Failed to check module", mm_last_error());
         return 1;
     }
 
     if (ret == 1) {
         printf("[OK] Module '%s' is loaded\n", name);
+        KMM_log("Module is loaded", name);
         return 0;
     } else {
         printf("[INFO] Module '%s' is NOT loaded\n", name);
+        KMM_log("Module is not loaded", name);
         return 1;
     }
 }
@@ -143,6 +167,11 @@ int main(int argc, char *argv[]) {
     // Initialize module manager
     if (mm_init() != 0) {
         fprintf(stderr, "[Error] Failed to initialize module manager: %s\n", mm_last_error());
+
+        char buffer[256];
+        snprintf(buffer, sizeof(buffer), "Failed to initialize module manager: %s", mm_last_error());
+        KMM_log(buffer, NULL);
+
         return 1;
     }
 
@@ -165,6 +194,7 @@ int main(int argc, char *argv[]) {
     }
     else {
         fprintf(stderr, "[Error] Unknown command: %s\n", cmd);
+        KMM_log("Unknown command attempted", cmd);
         print_usage(argv[0]);
         ret = 1;
     }
