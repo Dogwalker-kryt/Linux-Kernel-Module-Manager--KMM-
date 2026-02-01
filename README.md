@@ -5,10 +5,10 @@ A lightweight, user-friendly C utility for managing Linux kernel modules. Load, 
 ## Version
 
 Current version:
-    **v0.0.2**
+    **v0.0.3**
 
 last edits:
-- logger added
+- get info of specific module added
 
 
 ## Features
