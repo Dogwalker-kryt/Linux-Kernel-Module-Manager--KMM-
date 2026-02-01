@@ -164,46 +164,11 @@ int cmd_get_info_module(int argc, char *argv[]) {
     const char *name = argv[2];
     ModuleInfo info = {0};
 
-    struct kmod_ctx *ctx = kmod_new(NULL, NULL);
-    if (!ctx) {
-        fprintf(stderr, "[Error] Failed to create kmod context\n");
-        KMM_log("Failed to create kmod context", NULL);
+    int ret = mm_get_info(name, &info);
+    if (ret != 0) {
+        fprintf(stderr, "[Error] Failed to get module info: %s\n", mm_last_error());
+        KMM_log("Failed to get module info", name);
         return 1;
-    }
-
-    struct kmod_module *mod = NULL;
-    int ret = kmod_module_new_from_name(ctx, name, &mod);
-    if (ret < 0 || !mod) {
-        fprintf(stderr, "[Error] Module '%s' not found\n", name);
-        KMM_log("Module not found", name);
-        kmod_unref(ctx);
-        return 1;
-    }
-
-    // Fill in module info
-    strncpy(info.name, kmod_module_get_name(mod), sizeof(info.name) - 1);
-    info.size = kmod_module_get_size(mod);
-    info.refcount = kmod_module_get_refcnt(mod);
-    
-    struct kmod_list *deps = kmod_module_get_dependencies(mod);
-    if (deps) {
-        struct kmod_list *d;
-        int dep_idx = 0;
-        kmod_list_foreach(d, deps) {
-            struct kmod_module *dep_mod = kmod_module_get_module(d);
-            if (dep_idx > 0) strncat(info.deps, ", ", sizeof(info.deps) - 1);
-            strncat(info.deps, kmod_module_get_name(dep_mod), sizeof(info.deps) - 1);
-            dep_idx++;
-        }
-    }
-
-    int initstate = kmod_module_get_initstate(mod);
-    if (initstate == 1) {
-        strcpy(info.state, "Live");
-    } else if (initstate == 2) {
-        strcpy(info.state, "Builtin");
-    } else {
-        strcpy(info.state, "Unknown");
     }
 
     printf("\n=== Module Info: %s ===\n", info.name);
@@ -212,8 +177,6 @@ int cmd_get_info_module(int argc, char *argv[]) {
     printf("Dependencies: %s\n", info.deps[0] != '\0' ? info.deps : "-");
     printf("State: %s\n", info.state);
 
-    kmod_module_unref(mod);
-    kmod_unref(ctx);
     return 0;
 }
 
