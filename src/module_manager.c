@@ -233,3 +233,81 @@ int mm_list(ModuleInfo **list, int *count) {
 const char *mm_last_error(void) {
     return (g_error_msg[0] != '\0') ? g_error_msg : "No error";
 }
+
+int mm_get_info_module(ModuleInfo *info, struct kmod_module *mod, char *name_of_module) {
+    if (!info || !mod) {
+        return -1;
+    }
+
+    // name
+    strncpy(info->name, name_of_module, sizeof(info->name) - 1);
+    info->name[sizeof(info->name) - 1] = '\0';
+
+    // size + refcount
+    info->size = kmod_module_get_size(mod);
+    info->refcount = kmod_module_get_refcnt(mod);
+
+    // dependencies
+    info->deps[0] = '\0'; // IMPORTANT: clear buffer
+
+    struct kmod_list *dep_list = kmod_module_get_dependencies(mod);
+    if (dep_list) {
+        struct kmod_list *itr;
+        int first = 1;
+
+        kmod_list_foreach(itr, dep_list) {
+            struct kmod_module *dep_mod = kmod_module_get_module(itr);
+            const char *dep_name = kmod_module_get_name(dep_mod);
+
+            if (!first) {
+                strncat(info->deps, ", ", sizeof(info->deps) - strlen(info->deps) - 1);
+            }
+            strncat(info->deps, dep_name, sizeof(info->deps) - strlen(info->deps) - 1);
+
+            first = 0;
+        }
+
+        kmod_module_unref_list(dep_list);
+    }
+
+    // state
+    int initstate = kmod_module_get_initstate(mod);
+    switch (initstate) {
+        case KMOD_MODULE_LIVE:
+            strcpy(info->state, "Live");
+            break;
+        case KMOD_MODULE_BUILTIN:
+            strcpy(info->state, "Builtin");
+            break;
+        default:
+            strcpy(info->state, "Unknown");
+            break;
+    }
+
+    return 0;
+}
+
+// Get detailed info about a specific module by name
+int mm_get_info(const char *name, ModuleInfo *info) {
+    if (!g_ctx) {
+        set_error("Module manager not initialized");
+        return -1;
+    }
+
+    if (!name || !info) {
+        set_error("Invalid arguments");
+        return -1;
+    }
+
+    struct kmod_module *mod = NULL;
+    int ret = kmod_module_new_from_name(g_ctx, name, &mod);
+    if (ret < 0 || !mod) {
+        set_error("Module not found: %s", name);
+        return -1;
+    }
+
+    // Use existing function to fill info
+    ret = mm_get_info_module(info, mod, (char *)name);
+    kmod_module_unref(mod);
+    return ret;
+}
