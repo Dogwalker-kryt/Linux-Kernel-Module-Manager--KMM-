@@ -60,4 +60,21 @@ const char *mm_last_error(void);
  */
 int mm_is_loaded(const char *name);
 
+/**
+ * Get detailed information about a module
+ * @param name: Module name
+ * @param info: Output ModuleInfo struct (will be filled with module details)
+ * Returns 0 on success, -1 on error
+ */
+int mm_get_info(const char *name, ModuleInfo *info);
+
+/**
+ * Get module info (internal helper)
+ * @param info: Output ModuleInfo struct
+ * @param mod: kmod_module pointer
+ * @param name_of_module: Name of the module
+ * Returns 0 on success, -1 on error
+ */
+int mm_get_info_module(ModuleInfo *info, struct kmod_module *mod, char *name_of_module);
+
 #endif
